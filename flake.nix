@@ -51,7 +51,8 @@
           fi
 
           TARGET_COMMIT="''${1:-HEAD}"
-          python3 contrib/gcc-changelog/git_check_commit.py "$TARGET_COMMIT"        '';
+          python3 contrib/gcc-changelog/git_check_commit.py "$TARGET_COMMIT"
+        '';
       };
 
       mkGccrsEnv =
