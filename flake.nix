@@ -64,7 +64,7 @@
           installDirName = if is32Bit then "install32" else "install";
           setupName = if is32Bit then "gccrs-setup32" else "gccrs-setup";
           buildName = if is32Bit then "gccrs-build32" else "gccrs-build";
-          flakeTarget = if is32Bit then "#gcc32" else "";
+          # flakeTarget = if is32Bit then "#gcc32" else "";
 
           gccrs-setup = pkgs.writeScriptBin setupName ''
             #!/usr/bin/env bash
@@ -131,7 +131,22 @@
                  CFLAGS="-Wno-error -Wno-format-security" \
                  CXXFLAGS="-Wno-error -Wno-format-security"
 
-            make install
+            # make install
+
+            if [ "$SKIP_CLONE" = false ]; then  
+              if [ -f "$BUILD_DIR/compile_commands.json" ]; then
+                ln -sf "$BUILD_DIR/compile_commands.json" "$SRC_DIR/compile_commands.json"
+              fi
+              
+              cat <<EOF > "$SRC_DIR/.clangd"
+              CompileFlags:
+                Remove: [ccache]
+              EOF
+
+              if [ -f "$SRC_DIR/contrib/clang-format" ]; then
+                ln -sf "$SRC_DIR/contrib/clang-format" "$SRC_DIR/.clang-format"
+              fi
+            fi
 
             if [ "$SETUP_DIRENV" = true ]; then
               ${if is32Bit then ''
