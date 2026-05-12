@@ -125,7 +125,7 @@
                 --disable-libsanitizer \
                 ${if is32Bit then "--host=i686-pc-linux-gnu --build=i686-pc-linux-gnu" else ""}
 
-            make -j "$(nproc)" \
+            bear -- make -j "$(nproc)" \
                  WERROR="" \
                  STRICT_FLAGS="" \
                  CFLAGS="-Wno-error -Wno-format-security" \
@@ -134,16 +134,21 @@
             make install
 
             if [ "$SETUP_DIRENV" = true ]; then
+              ${if is32Bit then ''
                 if [ -f "$ROOT_DIR/flake.nix" ]; then
-                    echo "use flake \"../${flakeTarget}\"" > .envrc
+                    echo "use flake \"../#gcc32\"" > "$BUILD_DIR/.envrc"
                 else
-                    ##############################################################################
-                    ## change this with Rust-GCC
-                    ##############################################################################
-                    #VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
-                    echo "use flake \"github:nsvke/gccrs.nix${flakeTarget}\"" > .envrc
+                    echo "use flake \"github:nsvke/gccrs.nix#gcc32\"" > "$BUILD_DIR/.envrc"
                 fi
-                echo "Run 'direnv allow' inside '${buildDirName}' to activate direnv."
+                echo "Run 'direnv allow' inside '${buildDirName}' to activate 32-bit direnv."
+              '' else ''
+                if [ -f "$ROOT_DIR/flake.nix" ]; then
+                    echo "use flake \".\"" > "$ROOT_DIR/.envrc"
+                else
+                    echo "use flake \"github:nsvke/gccrs.nix\"" > "$ROOT_DIR/.envrc"
+                fi
+                echo "Run 'direnv allow' inside your project root to activate 64-bit direnv."
+              ''}
             fi
 
             echo "Your gccrs build is ready!"
@@ -165,11 +170,25 @@
                 cd "$BUILD_DIR"
             fi
 
-            make -j "$(nproc)" \
-                 WERROR="" \
-                 STRICT_FLAGS="" \
-                 CFLAGS="-Wno-error -Wno-format-security" \
-                 CXXFLAGS="-Wno-error -Wno-format-security" "$@"
+            USE_BEAR=false
+            if [[ "$1" == "--bear" ]]; then
+              USE_BEAR=true
+              shift
+            fi
+  
+            if [ "$USE_BEAR" = true ]; then
+              bear -- make -j "$(nproc)" \
+                   WERROR="" \
+                   STRICT_FLAGS="" \
+                   CFLAGS="-Wno-error -Wno-format-security" \
+                   CXXFLAGS="-Wno-error -Wno-format-security" "$@"
+            else
+              make -j "$(nproc)" \
+                   WERROR="" \
+                   STRICT_FLAGS="" \
+                   CFLAGS="-Wno-error -Wno-format-security" \
+                   CXXFLAGS="-Wno-error -Wno-format-security" "$@"
+            fi
           '';
         in
         targetPkgs.mkShell {
@@ -209,6 +228,10 @@
             # rust dependencies
             cargo
             rustc
+
+            # format dependencies
+            pkgs.bear
+            pkgs.clang-tools
           ];
 
           buildInputs = with targetPkgs; [
@@ -231,6 +254,7 @@
             echo "Run '${setupName} --skip-clone' if you already have the 'gccrs' folder."
             echo "Run '${setupName} --use-direnv' to automatically setup direnv your '${buildDirName}' folder."
             echo "Run '${buildName}' for incremental builds."
+            echo "Run '${buildName} --bear' for incremantal builds with bear."
             echo "Run 'gccrs-mklog' to generate a changelog for your changes."
             echo "Run 'gccrs-check-commit' to verify your commits against GNU standards."
           '';
