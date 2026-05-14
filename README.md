@@ -84,10 +84,18 @@ This automatically creates a build32/ directory, pulls a 32-bit rustc toolchain 
 
 ## Included Tools
 
-- `gccrs-setup` / `gccrs-setup32`: Bootstraps the workspace.
+_Note: If you are using the 32-bit environment, use the `32` suffixed versions of the setup and build commands._
 
-- `gccrs-build` / `gccrs-build32`: Context-aware make wrapper for incremental builds.
+- `gccrs-setup` (or `gccrs-setup32`) : Starts from scratch (clones, configures, and builds the compiler).
+- `gccrs-setup --skip-clone` : Configures and builds using an existing `gccrs` folder.
+- `gccrs-setup --use-direnv` : Automatically sets up direnv integration for the build environment.
+- `gccrs-build` (or `gccrs-build32`) : Runs an incremental build (compiles only the changed files).
+- `gccrs-build --bear` : Runs an incremental build and generates/updates `compile_commands.json` for LSP support (e.g., clangd).
 
-- `gccrs-mklog`: Wraps contrib/mklog.py to easily generate GNU-style changelogs from your staged git commits.
+The environment provides isolated wrappers around GCC's upstream `contrib` scripts to help you format commits and check code style.
 
-- `gccrs-check-commit`: Wraps contrib/gcc-changelog/git_check_commit.py to verify your commits against strict GNU standards before pushing.
+- `gccrs-mklog` : Generates a GNU ChangeLog template for your currently STAGED files (`git add`).
+- `gccrs-commit-mklog` : Generates the ChangeLog template and immediately opens the Git commit editor.
+- `gccrs-verify [hash]` : Verifies the commit message format of `HEAD` (or a specific commit) against strict GNU standards.
+- `gccrs-fix-changelog` : Attempts to automatically fix minor typographical or formatting errors in the ChangeLog of `HEAD`.
+- `gccrs-style [hash]` : Checks the modifications in `HEAD` (or a specific commit) against the GNU C++ coding style guidelines.
