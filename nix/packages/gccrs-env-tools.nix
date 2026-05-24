@@ -45,10 +45,11 @@ let
         git clone https://github.com/Rust-GCC/gccrs.git
     fi
 
-    export CC="ccache gcc"
-    export CXX="ccache g++"
-    export CFLAGS="-g -O0"
-    export CXXFLAGS="-g -O0"
+    if [ -f "$BUILD_DIR/Makefile" ]; then
+        echo "Warning: '$BUILD_DIR' is already configured!"
+        echo "If you want to reconfigure, use 'rm -rf $BUILD_DIR/*'"
+        exit 1
+    fi
 
     mkdir -p "$BUILD_DIR"
     cd "$BUILD_DIR"
@@ -81,17 +82,10 @@ let
       ln -sf "$BUILD_DIR/compile_commands.json" "$SRC_DIR/compile_commands.json"
     fi
 
-    if [ ! -f "$SRC_DIR/.clangd" ]; then
-      cat <<EOF > "$SRC_DIR/.clangd"
-CompileFlags:
-  Remove: [ccache]
-EOF
-    fi
-
     if [ ! -f "$SRC_DIR/.clang-format" ] && [ -f "$SRC_DIR/contrib/clang-format" ]; then
       ln -sf "$SRC_DIR/contrib/clang-format" "$SRC_DIR/.clang-format"
     fi
-    
+
     if [ "$SETUP_DIRENV" = true ]; then
       ${
         if is32Bit then
@@ -127,16 +121,43 @@ EOF
     #!/usr/bin/env bash
     set -e
 
-    if [[ "$(basename "$PWD")" == "${buildDirName}" ]]; then
-        BUILD_DIR="$PWD"
-    else
-        BUILD_DIR="$PWD/${buildDirName}"
-        if [ ! -d "$BUILD_DIR" ]; then
-            echo "Warning: '${buildDirName}' folder does not exist. Run '${setupName}' first."
-            exit 1
-        fi
-        cd "$BUILD_DIR"
+    get_build_dir() {
+      local curr="$PWD"
+
+      while [[ "$curr" != "/" ]]; do
+          if [[ "$(basename "$curr")" == "${buildDirName}" ]]; then
+              echo "$curr"
+              return 0
+          fi
+          curr="$(dirname "$curr")"
+      done
+
+      if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          local git_root
+          git_root=$(git rev-parse --show-toplevel)
+
+          if [ -d "$(dirname "$git_root")/${buildDirName}" ]; then
+            echo "$(dirname "$git_root")/${buildDirName}"
+            return 0
+          fi
+      fi
+
+      if [ -d "$PWD/${buildDirName}" ]; then
+          echo "$PWD/${buildDirName}"
+          return 0
+      fi
+
+      return 1
+    }
+
+    BUILD_DIR=$(get_build_dir)
+
+    if [ -z "$BUILD_DIR" ] || [ ! -d "$BUILD_DIR" ]; then
+      echo "Warning: '${buildDirName}' not found!" >&2
+      exit 1
     fi
+
+    cd "$BUILD_DIR" || exit 1
 
     USE_BEAR=false
     if [[ "$1" == "--bear" ]]; then

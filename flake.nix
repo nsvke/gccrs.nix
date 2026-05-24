@@ -24,7 +24,7 @@
           };
 
         in
-        targetPkgs.mkShell {
+        targetPkgs.mkShell.override { stdenv = targetPkgs.ccacheStdenv; } {
           name = "gccrs-dev${if is32Bit then "-32" else "-64"}";
 
           packages = [
@@ -43,6 +43,7 @@
             bison
             texinfo
             ccache
+            mold
 
             # test dependencies
             dejagnu
@@ -76,6 +77,7 @@
           ];
 
           shellHook = ''
+            export NIX_CFLAGS_LINK="-fuse-ld=mold"
             export GCCRS_INCOMPLETE_AND_EXPERIMENTAL_COMPILER_DO_NOT_USE="1"
             export NIX_GLIBC_INCLUDE="${targetPkgs.glibc.dev}/include"
             export LIBRARY_PATH="${targetPkgs.glibc}/lib"
