@@ -91,6 +91,9 @@ _Note: If you are using the 32-bit environment, use the `32` suffixed versions o
 - `gccrs-setup --use-direnv` : Automatically sets up direnv integration for the build environment.
 - `gccrs-build` (or `gccrs-build32`) : Runs an incremental build (compiles only the changed files).
 - `gccrs-build --bear` : Runs an incremental build and generates/updates `compile_commands.json` for LSP support (e.g., clangd).
+- `gccrs-test [args...]` : Run gccrs testsuite.
+- `gccrs-test --build [args...]` : Build and run gccrs testsuite.
+- `gx <binary> [args...]` : Use built gccrs binaries.
 
 The environment provides isolated wrappers around GCC's upstream `contrib` scripts to help you format commits and check code style.
 

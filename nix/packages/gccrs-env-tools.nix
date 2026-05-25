@@ -79,13 +79,13 @@ let
     # make install
 
     if [ ! -e "$SRC_DIR/compile_commands.json" ] && [ -f "$BUILD_DIR/compile_commands.json" ]; then
-      ln -sf "$BUILD_DIR/compile_commands.json" "$SRC_DIR/compile_commands.json"
+      ln -sf "../${buildDirName}/compile_commands.json" "$SRC_DIR/compile_commands.json"
     fi
 
     if [ ! -f "$SRC_DIR/.clang-format" ] && [ -f "$SRC_DIR/contrib/clang-format" ]; then
-      ln -sf "$SRC_DIR/contrib/clang-format" "$SRC_DIR/.clang-format"
+      ln -sf "contrib/clang-format" "$SRC_DIR/.clang-format"
     fi
-
+    
     if [ "$SETUP_DIRENV" = true ]; then
       ${
         if is32Bit then
@@ -117,10 +117,7 @@ let
     echo "Use '${buildName}' or 'make' commands to compile it again."
   '';
 
-  gccrs-build = writeScriptBin buildName ''
-    #!/usr/bin/env bash
-    set -e
-
+  getBuildDirFunc = ''
     get_build_dir() {
       local curr="$PWD"
 
@@ -149,6 +146,13 @@ let
 
       return 1
     }
+  '';
+
+  gccrs-build = writeScriptBin buildName ''
+    #!/usr/bin/env bash
+    set -e
+
+    ${getBuildDirFunc}
 
     BUILD_DIR=$(get_build_dir)
 
@@ -180,23 +184,98 @@ let
     fi
   '';
 
+  gx = writeScriptBin "gx" ''
+    #!/usr/bin/env bash
+    set -e
+
+    ${getBuildDirFunc}
+
+    BUILD_DIR=$(get_build_dir)
+
+    if [ -z "$BUILD_DIR" ]; then
+        echo "Warning: Build directory '${buildDirName}' not found!" >&2
+        exit 1
+    fi
+
+    if [ -z "$1" ]; then
+        echo "Usage: gx <binary> [args...]" >&2
+        exit 1
+    fi
+
+    BIN_NAME="$1"
+    shift
+
+    TARGET_BIN="$BUILD_DIR/gcc/$BIN_NAME"
+
+    if [ ! -x "$TARGET_BIN" ]; then
+        echo "Warning: Executable '$TARGET_BIN' not found." >&2
+        exit 1
+    fi
+
+    exec "$TARGET_BIN" "$@"
+  '';
+
+  gccrs-test = writeScriptBin "gccrs-test" ''
+    #!/usr/bin/env bash
+    set -e
+
+    ${getBuildDirFunc}
+
+    BUILD_DIR=$(get_build_dir)
+
+    if [ -z "$BUILD_DIR" ]; then
+        echo "Warning: Build directory '${buildDirName}' not found!" >&2
+        exit 1
+    fi
+
+    BUILD_FIRST=false
+    RUNTESTFLAGS=""
+
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        --build)
+          BUILD_FIRST=true
+          shift
+          ;;
+        *)
+          if [ -z "$RUNTESTFLAGS" ]; then
+            RUNTESTFLAGS="$1"
+          else
+            RUNTESTFLAGS="$RUNTESTFLAGS $1"
+          fi
+          shift
+          ;;
+      esac
+    done
+
+    if [ "$BUILD_FIRST" = true ]; then
+        gccrs-build
+    fi
+
+    cd "$BUILD_DIR" || exit 1
+
+    make -k -j "$(nproc)" check-rust RUNTESTFLAGS="$RUNTESTFLAGS"
+  '';
+
   gccrs-help = writeScriptBin "gccrs-help" ''
     #!/usr/bin/env bash
 
-    echo "  ${setupName}                  : Start from scratch (clones, configures, builds).    "
-    echo "  ${setupName} --skip-clone     : Configure and build an existing 'gccrs' folder.     "
-    echo "  ${setupName} --use-direnv     : Automatically setup direnv for your build folder.   "
-    echo "  ${buildName}                  : Run incremental build (compiles only changes).      "
-    echo "  ${buildName} --bear           : Incremental build and update compile_commands.json. "
+    echo "  ${setupName}                  : Start from scratch (configures, builds)."
+    echo "  ${setupName} --use-direnv     : Automatically setup direnv for your build folder."
+    echo "  ${buildName}                  : Run incremental build (compiles only changes)."
+    echo "  ${buildName} --bear           : Incremental build and update compile_commands.json."
+    echo "  gccrs-test [args...]          : Run gccrs testsuite."
+    echo "  gccrs-test --build [args...]  : Build and run gccrs testsuite."
+    echo "  gx <binary> [args...]         : Use built gccrs binaries."
     echo ""
-    echo "  gccrs-mklog                  : Generate ChangeLog template for STAGED files.        "
-    echo "  gccrs-commit-mklog           : Generate ChangeLog and open Git commit editor.       "
-    echo "  gccrs-verify                 : Verify your latest commit (HEAD) against GNU std.    "
-    echo "  gccrs-verify <hash>          : Verify a specific commit in your history.            "
-    echo "  gccrs-fix-changelog          : Attempt to fix minor format typos in HEAD.           "
+    echo "  gccrs-mklog                  : Generate ChangeLog template for STAGED files."
+    echo "  gccrs-commit-mklog           : Generate ChangeLog and open Git commit editor."
+    echo "  gccrs-verify                 : Verify your latest commit (HEAD) against GNU std."
+    echo "  gccrs-verify <hash>          : Verify a specific commit in your history."
+    echo "  gccrs-fix-changelog          : Attempt to fix minor format typos in HEAD."
     echo ""
-    echo "  gccrs-style                  : Check GNU C++ style for modifications in HEAD.       "
-    echo "  gccrs-style <hash>           : Check style for modifications in a specific commit.  "
+    echo "  gccrs-style                  : Check GNU C++ style for modifications in HEAD."
+    echo "  gccrs-style <hash>           : Check style for modifications in a specific commit."
   '';
 in
 symlinkJoin {
@@ -204,6 +283,9 @@ symlinkJoin {
   paths = [
     gccrs-setup
     gccrs-build
+    gccrs-test
+    gx
     gccrs-help
   ];
 }
+
