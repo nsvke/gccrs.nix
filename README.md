@@ -1,3 +1,6 @@
+## DEPRECATED
+# USE GCCRS/CONTRIB/NIX/flake.nix
+
 # gccrs.nix
 
 A pure, reproducible, and strictly isolated development environment for [GCC Rust (gccrs)](https://github.com/Rust-GCC/gccrs).
