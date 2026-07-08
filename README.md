@@ -1,5 +1,5 @@
-## DEPRECATED
-# USE GCCRS/CONTRIB/NIX/flake.nix
+## UNMAINTAINED
+# https://github.com/nsvke/gccrs/blob/gccrs-nix/contrib/nix/flake.nix
 
 # gccrs.nix
 
